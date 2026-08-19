@@ -14,6 +14,7 @@ import {
   mapScript,
 } from "./airtable.js";
 import { triggerN8n } from "./n8n.js";
+import { login, requireAuth, readBearer, verifyToken } from "./auth.js";
 
 const CREATIVE_TYPES = [
   "Carousel",
@@ -90,6 +91,26 @@ app.get("/api/health", (_req, res) => {
     n8nConfigured: Boolean(process.env.N8N_WEBHOOK_URL),
   });
 });
+
+app.post(
+  "/api/auth/login",
+  asyncRoute(async (req, res) => {
+    const { username, password } = req.body || {};
+    const result = login(username, password);
+    res.json(result);
+  })
+);
+
+app.get("/api/auth/me", (req, res) => {
+  const payload = verifyToken(readBearer(req));
+  if (!payload) {
+    res.status(401).json({ error: "Sign in required" });
+    return;
+  }
+  res.json({ user: { username: payload.u, role: payload.role } });
+});
+
+app.use("/api", requireAuth);
 
 app.get(
   "/api/products",

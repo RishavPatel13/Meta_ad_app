@@ -1,15 +1,33 @@
 import { useEffect, useState } from "react";
-import { api } from "./api";
+import { AuthError, api, clearToken, getToken } from "./api";
 import type { Product } from "./types";
 import NewProductForm from "./NewProductForm";
 import ProductWorkspace from "./ProductWorkspace";
+import LoginPage from "./LoginPage";
 
 export default function App() {
+  const [user, setUser] = useState<{ username: string; role: string } | null>(null);
+  const [authReady, setAuthReady] = useState(!getToken());
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState("");
+
+  useEffect(() => {
+    if (!getToken()) {
+      setAuthReady(true);
+      return;
+    }
+    api
+      .me()
+      .then((data) => setUser(data.user))
+      .catch(() => {
+        clearToken();
+        setUser(null);
+      })
+      .finally(() => setAuthReady(true));
+  }, []);
 
   async function refresh(selectId?: string) {
     const data = await api.products();
@@ -42,6 +60,10 @@ export default function App() {
         setSelectedId(remaining[0]?.id || null);
       }
     } catch (err) {
+      if (err instanceof AuthError) {
+        setUser(null);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Could not delete product");
     } finally {
       setDeletingId("");
@@ -49,10 +71,23 @@ export default function App() {
   }
 
   useEffect(() => {
-    refresh().catch((err) =>
-      setError(err instanceof Error ? err.message : "Could not load products")
-    );
-  }, []);
+    if (!user) return;
+    refresh().catch((err) => {
+      if (err instanceof AuthError) {
+        setUser(null);
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Could not load products");
+    });
+  }, [user]);
+
+  if (!authReady) {
+    return <div className="empty">Opening the desk…</div>;
+  }
+
+  if (!user) {
+    return <LoginPage onSignedIn={setUser} />;
+  }
 
   return (
     <div className="app">
@@ -60,6 +95,21 @@ export default function App() {
         <div className="brand">
           <h1>Meta Ad Desk</h1>
           <p>Airtable in, n8n pipeline, Meta out.</p>
+          <div className="session-row">
+            <span>{user.username}</span>
+            <button
+              type="button"
+              className="text-btn"
+              onClick={() => {
+                clearToken();
+                setUser(null);
+                setProducts([]);
+                setSelectedId(null);
+              }}
+            >
+              Sign out
+            </button>
+          </div>
         </div>
         <button
           className="new-btn"

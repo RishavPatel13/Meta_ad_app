@@ -1,11 +1,37 @@
 import type { Product, ProductBundle } from "./types";
 
+const TOKEN_KEY = "meta-ad-token";
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY) || "";
+}
+
+export function clearToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export class AuthError extends Error {
+  constructor(message = "Sign in required") {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
   const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...(options?.headers || {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options?.headers || {}),
+    },
     ...options,
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 401) {
+    clearToken();
+    throw new AuthError(data.error || "Sign in required");
+  }
   if (!response.ok) {
     throw new Error(data.error || `Request failed (${response.status})`);
   }
@@ -13,6 +39,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  me: () => request<{ user: { username: string; role: string } }>("/api/auth/me"),
   products: () => request<{ products: Product[] }>("/api/products"),
   product: (id: string) => request<ProductBundle>(`/api/products/${id}`),
   createProduct: (body: {
