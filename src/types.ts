@@ -122,6 +122,7 @@ export const CREATIVE_TYPES = [
   "UGC",
   "Story",
   "Reel",
+  "Image",
   "Testimonial",
   "Meme",
   "Founder Story",

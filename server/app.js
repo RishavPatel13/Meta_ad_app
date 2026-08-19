@@ -19,6 +19,7 @@ const CREATIVE_TYPES = [
   "UGC",
   "Story",
   "Reel",
+  "Image",
   "Testimonial",
   "Meme",
   "Founder Story",
@@ -33,7 +34,7 @@ function requireCreativeType(value) {
   if (!match) {
     throw Object.assign(
       new Error(
-        "Select a creative type (Carousel, UGC, Story, Reel, Testimonial, Meme, Founder Story, or Before-After) before generating"
+        "Select a creative type (Carousel, UGC, Story, Reel, Image, Testimonial, Meme, Founder Story, or Before-After) before generating"
       ),
       { status: 400 }
     );
