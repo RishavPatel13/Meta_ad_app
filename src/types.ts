@@ -116,3 +116,16 @@ export type ProductBundle = {
 };
 
 export type TabId = "research" | "personas" | "angles" | "scripts";
+
+export const CREATIVE_TYPES = [
+  "Carousel",
+  "UGC",
+  "Story",
+  "Reel",
+  "Testimonial",
+  "Meme",
+  "Founder Story",
+  "Before-After",
+] as const;
+
+export type CreativeType = (typeof CREATIVE_TYPES)[number];

@@ -14,6 +14,33 @@ import {
 } from "./airtable.js";
 import { triggerN8n } from "./n8n.js";
 
+const CREATIVE_TYPES = [
+  "Carousel",
+  "UGC",
+  "Story",
+  "Reel",
+  "Testimonial",
+  "Meme",
+  "Founder Story",
+  "Before-After",
+];
+
+function requireCreativeType(value) {
+  const requested = String(value || "").trim();
+  const match = CREATIVE_TYPES.find(
+    (type) => type.toLowerCase() === requested.toLowerCase()
+  );
+  if (!match) {
+    throw Object.assign(
+      new Error(
+        "Select a creative type (Carousel, UGC, Story, Reel, Testimonial, Meme, Founder Story, or Before-After) before generating"
+      ),
+      { status: 400 }
+    );
+  }
+  return match;
+}
+
 const app = express();
 
 app.use(cors());
@@ -209,12 +236,16 @@ app.post(
   "/api/angles/generate-script",
   asyncRoute(async (req, res) => {
     const recordIds = req.body?.recordIds || [];
+    const creativeType = requireCreativeType(req.body?.creativeType);
     const result = await triggerCheckboxes(
       TABLES.angles,
       recordIds,
       FIELDS.angle.generateScript,
       "generate_script",
-      { [FIELDS.angle.status]: "Selected for Script" }
+      {
+        [FIELDS.angle.status]: "Selected for Script",
+        [FIELDS.angle.creativeType]: creativeType,
+      }
     );
     res.json({
       angles: result.updated.map(mapAngle),
@@ -227,12 +258,16 @@ app.post(
   "/api/angles/generate-image-copy",
   asyncRoute(async (req, res) => {
     const recordIds = req.body?.recordIds || [];
+    const creativeType = requireCreativeType(req.body?.creativeType);
     const result = await triggerCheckboxes(
       TABLES.angles,
       recordIds,
       FIELDS.angle.generateImageCopy,
       "generate_image_copy",
-      { [FIELDS.angle.status]: "Selected for Script" }
+      {
+        [FIELDS.angle.status]: "Selected for Script",
+        [FIELDS.angle.creativeType]: creativeType,
+      }
     );
     res.json({
       angles: result.updated.map(mapAngle),

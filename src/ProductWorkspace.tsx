@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
+import { CREATIVE_TYPES } from "./types";
 import type { Angle, Persona, ProductBundle, Script, TabId } from "./types";
 
 const TABS: { id: TabId; label: string }[] = [
@@ -58,6 +59,7 @@ export default function ProductWorkspace({
   const [busy, setBusy] = useState("");
   const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
   const [selectedAngles, setSelectedAngles] = useState<string[]>([]);
+  const [creativeType, setCreativeType] = useState("");
   const [openScript, setOpenScript] = useState<string | null>(null);
 
   async function load() {
@@ -72,6 +74,7 @@ export default function ProductWorkspace({
     setNotice("");
     setSelectedPersonas([]);
     setSelectedAngles([]);
+    setCreativeType("");
     setTab("research");
     load().catch((err) =>
       setError(err instanceof Error ? err.message : "Failed to load product")
@@ -311,6 +314,11 @@ export default function ProductWorkspace({
                     <span className={`badge ${statusClass(angle.status)}`}>
                       {angle.status || "No status"}
                     </span>
+                    {angle.creativeType ? (
+                      <span className="badge">{angle.creativeType}</span>
+                    ) : (
+                      <span className="badge warn">No creative type</span>
+                    )}
                     {angle.overallScore != null ? (
                       <span className="badge">Score {angle.overallScore}</span>
                     ) : null}
@@ -321,27 +329,47 @@ export default function ProductWorkspace({
               ))}
             </div>
           )}
-          <div className="sticky-actions">
-            <span className="muted">
-              Select winning angles. This marks Status as Selected for Script,
-              then n8n can generate script or image copy.
-            </span>
+          <div className="sticky-actions stack">
+            <div>
+              <p className="muted" style={{ margin: "0 0 10px" }}>
+                Select winning angles and one creative type. n8n will not run
+                without a type, so we do not generate every format and burn tokens.
+              </p>
+              <div className="chips" role="group" aria-label="Creative type">
+                {CREATIVE_TYPES.map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    className={`chip ${creativeType === type ? "active" : ""}`}
+                    onClick={() => setCreativeType(type)}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="actions">
               <button
                 className="btn primary"
-                disabled={!selectedAngles.length || Boolean(busy)}
+                disabled={
+                  !selectedAngles.length || !creativeType || Boolean(busy)
+                }
                 onClick={() =>
-                  run("Generate script", () => api.generateScript(selectedAngles))
+                  run("Generate script", () =>
+                    api.generateScript(selectedAngles, creativeType)
+                  )
                 }
               >
                 Generate script
               </button>
               <button
                 className="btn secondary"
-                disabled={!selectedAngles.length || Boolean(busy)}
+                disabled={
+                  !selectedAngles.length || !creativeType || Boolean(busy)
+                }
                 onClick={() =>
                   run("Generate image copy", () =>
-                    api.generateImageCopy(selectedAngles)
+                    api.generateImageCopy(selectedAngles, creativeType)
                   )
                 }
               >

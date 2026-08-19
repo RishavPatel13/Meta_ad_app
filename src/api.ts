@@ -37,15 +37,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ recordIds }),
     }),
-  generateScript: (recordIds: string[]) =>
+  generateScript: (recordIds: string[], creativeType: string) =>
     request("/api/angles/generate-script", {
       method: "POST",
-      body: JSON.stringify({ recordIds }),
+      body: JSON.stringify({ recordIds, creativeType }),
     }),
-  generateImageCopy: (recordIds: string[]) =>
+  generateImageCopy: (recordIds: string[], creativeType: string) =>
     request("/api/angles/generate-image-copy", {
       method: "POST",
-      body: JSON.stringify({ recordIds }),
+      body: JSON.stringify({ recordIds, creativeType }),
     }),
   generateCreative: (id: string) =>
     request(`/api/scripts/${id}/generate-creative`, { method: "POST" }),
