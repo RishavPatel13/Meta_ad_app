@@ -194,6 +194,19 @@ function updateRecord(table, id, fields) {
   });
 }
 
+async function deleteRecords(table, ids) {
+  const unique = [...new Set((ids || []).filter(Boolean))];
+  for (let i = 0; i < unique.length; i += 10) {
+    const chunk = unique.slice(i, i + 10);
+    const query = chunk
+      .map((id) => `records[]=${encodeURIComponent(id)}`)
+      .join("&");
+    await airtableFetch(`${encodeTable(table)}?${query}`, {
+      method: "DELETE",
+    });
+  }
+}
+
 function asText(value, fallback = "") {
   if (value == null || value === "") return fallback;
   if (typeof value === "string") return value;
@@ -373,6 +386,7 @@ export {
   getRecord,
   createRecord,
   updateRecord,
+  deleteRecords,
   mapProduct,
   mapPersona,
   mapAngle,

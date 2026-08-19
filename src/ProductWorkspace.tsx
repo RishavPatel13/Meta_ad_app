@@ -49,8 +49,10 @@ function ResearchBlock({ title, body }: { title: string; body: string }) {
 
 export default function ProductWorkspace({
   productId,
+  onDeleted,
 }: {
   productId: string;
+  onDeleted?: (id: string) => void;
 }) {
   const [bundle, setBundle] = useState<ProductBundle | null>(null);
   const [tab, setTab] = useState<TabId>("research");
@@ -124,6 +126,23 @@ export default function ProductWorkspace({
     }
   }
 
+  async function removeProduct() {
+    if (!bundle) return;
+    const ok = window.confirm(
+      `Delete "${bundle.product.name}" and its personas, angles, and scripts from Airtable? This cannot be undone.`
+    );
+    if (!ok) return;
+    setBusy("Delete product");
+    setError("");
+    try {
+      await api.deleteProduct(bundle.product.id);
+      onDeleted?.(bundle.product.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete product");
+      setBusy("");
+    }
+  }
+
   if (error && !bundle) {
     return <div className="flash error">{error}</div>;
   }
@@ -180,6 +199,13 @@ export default function ProductWorkspace({
             }
           >
             {busy === "Generate personas" ? "Triggering…" : "Generate personas"}
+          </button>
+          <button
+            className="btn danger"
+            disabled={Boolean(busy)}
+            onClick={() => void removeProduct()}
+          >
+            {busy === "Delete product" ? "Deleting…" : "Delete product"}
           </button>
         </div>
       </div>

@@ -51,4 +51,13 @@ export const api = {
     request(`/api/scripts/${id}/generate-creative`, { method: "POST" }),
   pushToMeta: (id: string) =>
     request(`/api/scripts/${id}/push-to-meta`, { method: "POST" }),
+  deleteProduct: (id: string) =>
+    request<{
+      deleted: {
+        product: string;
+        personas: number;
+        angles: number;
+        scripts: number;
+      };
+    }>(`/api/products/${id}`, { method: "DELETE" }),
 };

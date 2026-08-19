@@ -81,14 +81,43 @@ button {
 }
 
 .product-item {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
   width: 100%;
   text-align: left;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text);
   border-radius: 12px;
-  padding: 12px;
+  padding: 6px;
   margin-bottom: 8px;
+}
+
+.product-item-main {
+  flex: 1;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.icon-delete {
+  flex-shrink: 0;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 8px;
+  border-radius: 8px;
+}
+
+.icon-delete:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgba(224, 122, 106, 0.12);
 }
 
 .product-item:hover,

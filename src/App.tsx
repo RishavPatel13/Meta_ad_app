@@ -9,6 +9,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   async function refresh(selectId?: string) {
     const data = await api.products();
@@ -17,7 +18,34 @@ export default function App() {
       setSelectedId(selectId);
       return;
     }
-    setSelectedId((current) => current || data.products[0]?.id || null);
+    setSelectedId((current) => {
+      if (current && data.products.some((product) => product.id === current)) {
+        return current;
+      }
+      return data.products[0]?.id || null;
+    });
+  }
+
+  async function removeProduct(product: Product) {
+    const ok = window.confirm(
+      `Delete "${product.name}" and its personas, angles, and scripts from Airtable? This cannot be undone.`
+    );
+    if (!ok) return;
+    setDeletingId(product.id);
+    setError("");
+    try {
+      await api.deleteProduct(product.id);
+      const remaining = products.filter((item) => item.id !== product.id);
+      setProducts(remaining);
+      if (selectedId === product.id) {
+        setCreating(false);
+        setSelectedId(remaining[0]?.id || null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete product");
+    } finally {
+      setDeletingId("");
+    }
   }
 
   useEffect(() => {
@@ -44,19 +72,32 @@ export default function App() {
         </button>
         <div className="product-list">
           {products.map((product) => (
-            <button
+            <div
               key={product.id}
               className={`product-item ${selectedId === product.id && !creating ? "active" : ""}`}
-              onClick={() => {
-                setCreating(false);
-                setSelectedId(product.id);
-              }}
             >
-              <strong>{product.name}</strong>
-              <span>
-                {product.researchStatus} · {product.personaIds.length} personas
-              </span>
-            </button>
+              <button
+                className="product-item-main"
+                onClick={() => {
+                  setCreating(false);
+                  setSelectedId(product.id);
+                }}
+              >
+                <strong>{product.name}</strong>
+                <span>
+                  {product.researchStatus} · {product.personaIds.length} personas
+                </span>
+              </button>
+              <button
+                className="icon-delete"
+                type="button"
+                disabled={deletingId === product.id}
+                title="Delete product and history"
+                onClick={() => removeProduct(product)}
+              >
+                {deletingId === product.id ? "…" : "Delete"}
+              </button>
+            </div>
           ))}
         </div>
       </aside>
@@ -76,7 +117,14 @@ export default function App() {
             }}
           />
         ) : selectedId ? (
-          <ProductWorkspace productId={selectedId} />
+          <ProductWorkspace
+            productId={selectedId}
+            onDeleted={(id) => {
+              const remaining = products.filter((item) => item.id !== id);
+              setProducts(remaining);
+              setSelectedId(remaining[0]?.id || null);
+            }}
+          />
         ) : (
           <div className="empty">Create a product to start the pipeline.</div>
         )}

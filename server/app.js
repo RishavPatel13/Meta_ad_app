@@ -7,6 +7,7 @@ import {
   getRecord,
   createRecord,
   updateRecord,
+  deleteRecords,
   mapProduct,
   mapPersona,
   mapAngle,
@@ -102,48 +103,84 @@ app.get(
   })
 );
 
+async function loadRelated(product) {
+  const [personaRecords, angleRecords, scriptRecords] = await Promise.all([
+    listAll(TABLES.personas),
+    listAll(TABLES.angles),
+    listAll(TABLES.scripts),
+  ]);
+
+  const personas = personaRecords
+    .map(mapPersona)
+    .filter((persona) => persona.productIds.includes(product.id));
+
+  const personaIds = new Set(personas.map((p) => p.id));
+  const personaNames = personas.map((p) => p.name.toLowerCase()).filter(Boolean);
+  const angles = angleRecords
+    .map(mapAngle)
+    .filter((angle) => {
+      if (
+        angle.productIds.includes(product.id) ||
+        angle.personaIds.some((id) => personaIds.has(id))
+      ) {
+        return true;
+      }
+      const angleName = angle.name.toLowerCase();
+      return personaNames.some((name) => name && angleName.includes(name));
+    });
+
+  const angleIds = new Set(angles.map((a) => a.id));
+  const angleNames = angles.map((a) => a.name.toLowerCase()).filter(Boolean);
+  const scripts = scriptRecords
+    .map(mapScript)
+    .filter((script) => {
+      if (script.angleIds.some((id) => angleIds.has(id))) return true;
+      const scriptName = script.name.toLowerCase();
+      return angleNames.some((name) => name && scriptName.startsWith(name));
+    });
+
+  return { personas, angles, scripts };
+}
+
 app.get(
   "/api/products/:id",
   asyncRoute(async (req, res) => {
     const productRecord = await getRecord(TABLES.products, req.params.id);
     const product = mapProduct(productRecord);
+    const related = await loadRelated(product);
+    res.json({ product, ...related });
+  })
+);
 
-    const [personaRecords, angleRecords, scriptRecords] = await Promise.all([
-      listAll(TABLES.personas),
-      listAll(TABLES.angles),
-      listAll(TABLES.scripts),
-    ]);
+app.delete(
+  "/api/products/:id",
+  asyncRoute(async (req, res) => {
+    const productRecord = await getRecord(TABLES.products, req.params.id);
+    const product = mapProduct(productRecord);
+    const { personas, angles, scripts } = await loadRelated(product);
 
-    const personas = personaRecords
-      .map(mapPersona)
-      .filter((persona) => persona.productIds.includes(product.id));
+    await deleteRecords(
+      TABLES.scripts,
+      scripts.map((script) => script.id)
+    );
+    await deleteRecords(
+      TABLES.angles,
+      angles.map((angle) => angle.id)
+    );
+    await deleteRecords(
+      TABLES.personas,
+      personas.map((persona) => persona.id)
+    );
+    await deleteRecords(TABLES.products, [product.id]);
 
-    const personaIds = new Set(personas.map((p) => p.id));
-    const personaNames = personas.map((p) => p.name.toLowerCase()).filter(Boolean);
-    const angles = angleRecords
-      .map(mapAngle)
-      .filter((angle) => {
-        if (
-          angle.productIds.includes(product.id) ||
-          angle.personaIds.some((id) => personaIds.has(id))
-        ) {
-          return true;
-        }
-        const angleName = angle.name.toLowerCase();
-        return personaNames.some((name) => name && angleName.includes(name));
-      });
-
-    const angleIds = new Set(angles.map((a) => a.id));
-    const angleNames = angles.map((a) => a.name.toLowerCase()).filter(Boolean);
-    const scripts = scriptRecords
-      .map(mapScript)
-      .filter((script) => {
-        if (script.angleIds.some((id) => angleIds.has(id))) return true;
-        const scriptName = script.name.toLowerCase();
-        return angleNames.some((name) => name && scriptName.startsWith(name));
-      });
-
-    res.json({ product, personas, angles, scripts });
+    res.json({
+      deleted: {
+        product: product.id,
+        personas: personas.length,
+        angles: angles.length,
+        scripts: scripts.length,
+      },
+    });
   })
 );
 
