@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { Readable } from "node:stream";
 import {
   TABLES,
   FIELDS,
@@ -12,6 +13,7 @@ import {
   mapPersona,
   mapAngle,
   mapScript,
+  mapAttachments,
 } from "./airtable.js";
 import { triggerN8n } from "./n8n.js";
 import { login, requireAuth, readBearer, verifyToken } from "./auth.js";
@@ -111,6 +113,78 @@ app.get("/api/auth/me", (req, res) => {
 });
 
 app.use("/api", requireAuth);
+
+const FILE_SOURCES = {
+  "product-image": {
+    table: TABLES.products,
+    fields: [FIELDS.product.image],
+  },
+  "angle-creative": {
+    table: TABLES.angles,
+    fields: [FIELDS.angle.generatedCreative, "Generated Creatives", "Generated Creative"],
+  },
+  "script-creative": {
+    table: TABLES.scripts,
+    fields: [FIELDS.script.generatedCreative, "Generated Creatives", "Generated Creative"],
+  },
+};
+
+function contentDisposition(filename) {
+  const safe = String(filename || "download")
+    .replace(/[\r\n"]/g, "")
+    .replace(/[^\x20-\x7E]/g, "_") || "download";
+  const encoded = encodeURIComponent(filename || "download");
+  return `attachment; filename="${safe}"; filename*=UTF-8''${encoded}`;
+}
+
+app.get(
+  "/api/files/:kind/:recordId/:fileId",
+  asyncRoute(async (req, res) => {
+    const source = FILE_SOURCES[req.params.kind];
+    if (!source) {
+      throw Object.assign(new Error("Unknown file type"), { status: 404 });
+    }
+    const record = await getRecord(source.table, req.params.recordId);
+    const files = source.fields.flatMap((field) =>
+      mapAttachments(record.fields?.[field])
+    );
+    const unique = [];
+    const seen = new Set();
+    for (const item of files) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      unique.push(item);
+    }
+    const file =
+      unique.find((item) => item.id === req.params.fileId) ||
+      unique[Number(req.params.fileId)] ||
+      null;
+    if (!file) {
+      throw Object.assign(new Error("File not found on this record"), { status: 404 });
+    }
+
+    const upstream = await fetch(file.url);
+    if (!upstream.ok) {
+      throw Object.assign(
+        new Error(`Could not fetch file from Airtable (${upstream.status})`),
+        { status: 502 }
+      );
+    }
+
+    res.setHeader(
+      "Content-Type",
+      file.type || upstream.headers.get("content-type") || "application/octet-stream"
+    );
+    res.setHeader("Content-Disposition", contentDisposition(file.filename));
+    res.setHeader("Cache-Control", "private, max-age=30");
+
+    if (upstream.body) {
+      Readable.fromWeb(upstream.body).pipe(res);
+      return;
+    }
+    res.send(Buffer.from(await upstream.arrayBuffer()));
+  })
+);
 
 app.get(
   "/api/products",

@@ -1,7 +1,10 @@
 export type Attachment = {
+  id: string;
   url: string;
   filename: string;
   thumb: string;
+  type: string;
+  size: number | null;
 };
 
 export type Product = {
@@ -77,6 +80,8 @@ export type Angle = {
   metaRisk: string;
   lastActionResult: string;
   creativeStatus: string;
+  otherScores: string;
+  generatedCreatives: Attachment[];
 };
 
 export type Script = {
@@ -101,6 +106,7 @@ export type Script = {
   primaryText: string;
   description: string;
   generatedCreative: Attachment | null;
+  generatedCreatives: Attachment[];
   creativeStatus: string;
   videoPrompt: string;
   generateCreative: boolean;

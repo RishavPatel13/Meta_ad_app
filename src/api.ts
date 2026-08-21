@@ -38,6 +38,38 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return data as T;
 }
 
+export type FileKind = "product-image" | "angle-creative" | "script-creative";
+
+export async function downloadFile(
+  kind: FileKind,
+  recordId: string,
+  fileId: string,
+  filename: string
+) {
+  const token = getToken();
+  const response = await fetch(
+    `/api/files/${kind}/${recordId}/${encodeURIComponent(fileId)}`,
+    { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+  );
+  if (response.status === 401) {
+    clearToken();
+    throw new AuthError("Sign in required");
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || `Download failed (${response.status})`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename || "creative";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const api = {
   me: () => request<{ user: { username: string; role: string } }>("/api/auth/me"),
   products: () => request<{ products: Product[] }>("/api/products"),

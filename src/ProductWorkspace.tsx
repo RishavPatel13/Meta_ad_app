@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api";
+import CreativeFiles, { Detail } from "./CreativeFiles";
 import { CREATIVE_TYPES } from "./types";
 import type { Angle, Persona, ProductBundle, Script, TabId } from "./types";
 
@@ -63,6 +64,8 @@ export default function ProductWorkspace({
   const [selectedAngles, setSelectedAngles] = useState<string[]>([]);
   const [creativeType, setCreativeType] = useState("");
   const [openScript, setOpenScript] = useState<string | null>(null);
+  const [openPersona, setOpenPersona] = useState<string | null>(null);
+  const [openAngle, setOpenAngle] = useState<string | null>(null);
 
   async function load() {
     const data = await api.product(productId);
@@ -77,6 +80,9 @@ export default function ProductWorkspace({
     setSelectedPersonas([]);
     setSelectedAngles([]);
     setCreativeType("");
+    setOpenScript(null);
+    setOpenPersona(null);
+    setOpenAngle(null);
     setTab("research");
     load().catch((err) =>
       setError(err instanceof Error ? err.message : "Failed to load product")
@@ -158,7 +164,15 @@ export default function ProductWorkspace({
       <div className="topbar">
         <div className="product-hero">
           {product.image ? (
-            <img src={product.image.thumb} alt="" />
+            <div>
+              <img src={product.image.thumb} alt="" />
+              <CreativeFiles
+                kind="product-image"
+                recordId={product.id}
+                files={[product.image]}
+                layout="button"
+              />
+            </div>
           ) : null}
           <div>
             <h2>{product.name}</h2>
@@ -250,6 +264,7 @@ export default function ProductWorkspace({
             <ResearchBlock title="Brand identity" body={product.brandIdentity} />
             <ResearchBlock title="Market positioning" body={product.marketPositioning} />
             <ResearchBlock title="Research sources" body={product.sources} />
+            <ResearchBlock title="Product notes" body={product.notes} />
           </div>
         </div>
       ) : null}
@@ -262,31 +277,59 @@ export default function ProductWorkspace({
             </div>
           ) : (
             <div className="grid">
-              {personas.map((persona) => (
-                <label key={persona.id} className="card" style={{ cursor: "pointer" }}>
-                  <div className="card-head">
-                    <div>
-                      <h4>{persona.name}</h4>
-                      <p className="muted">{persona.awarenessLevel}</p>
+              {personas.map((persona) => {
+                const open = openPersona === persona.id;
+                return (
+                  <div key={persona.id} className="card">
+                    <div className="card-head">
+                      <div>
+                        <h4>{persona.name}</h4>
+                        <p className="muted">{persona.awarenessLevel}</p>
+                      </div>
+                      <label className="checkbox" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedPersonas.includes(persona.id)}
+                          onChange={() =>
+                            toggle(selectedPersonas, persona.id, setSelectedPersonas)
+                          }
+                        />
+                        Select
+                      </label>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedPersonas.includes(persona.id)}
-                      onChange={() =>
-                        toggle(selectedPersonas, persona.id, setSelectedPersonas)
-                      }
-                    />
+                    <p className="muted">{persona.demographics}</p>
+                    <p className="muted" style={{ marginTop: 10 }}>
+                      {persona.purchaseMotivation}
+                    </p>
+                    <p className="muted" style={{ marginTop: 10 }}>
+                      Score: {persona.confidenceScore ?? "—"} · Angles:{" "}
+                      {persona.angleIds.length}
+                    </p>
+                    <div className="actions" style={{ marginTop: 12 }}>
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={() => setOpenPersona(open ? null : persona.id)}
+                      >
+                        {open ? "Hide details" : "View all fields"}
+                      </button>
+                    </div>
+                    {open ? (
+                      <div className="detail-grid" style={{ marginTop: 14 }}>
+                        <Detail label="Goals & frustrations" value={persona.goals} />
+                        <Detail label="Expected tone" value={persona.expectedTone} />
+                        <Detail
+                          label="Communication style"
+                          value={persona.communicationStyle}
+                        />
+                        <Detail label="Core psychology" value={persona.corePsychology} />
+                        <Detail label="Triggers" value={persona.triggers} />
+                        <Detail label="Top 10s" value={persona.top10s} />
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="muted">{persona.demographics}</p>
-                  <p className="muted" style={{ marginTop: 10 }}>
-                    {persona.purchaseMotivation}
-                  </p>
-                  <p className="muted" style={{ marginTop: 10 }}>
-                    Score: {persona.confidenceScore ?? "—"} · Angles:{" "}
-                    {persona.angleIds.length}
-                  </p>
-                </label>
-              ))}
+                );
+              })}
             </div>
           )}
           <div className="sticky-actions">
@@ -316,43 +359,124 @@ export default function ProductWorkspace({
             </div>
           ) : (
             <div className="grid">
-              {angles.map((angle) => (
-                <label key={angle.id} className="card" style={{ cursor: "pointer" }}>
-                  <div className="card-head">
-                    <div>
-                      <h4>{angle.name}</h4>
-                      <p className="muted">
-                        {angle.personaIds
-                          .map((id) => personasById.get(id)?.name)
-                          .filter(Boolean)
-                          .join(", ") || "Unlinked persona"}
-                      </p>
+              {angles.map((angle) => {
+                const open = openAngle === angle.id;
+                return (
+                  <div key={angle.id} className="card">
+                    <div className="card-head">
+                      <div>
+                        <h4>{angle.name}</h4>
+                        <p className="muted">
+                          {angle.personaIds
+                            .map((id) => personasById.get(id)?.name)
+                            .filter(Boolean)
+                            .join(", ") || "Unlinked persona"}
+                        </p>
+                      </div>
+                      <label className="checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedAngles.includes(angle.id)}
+                          onChange={() =>
+                            toggle(selectedAngles, angle.id, setSelectedAngles)
+                          }
+                        />
+                        Select
+                      </label>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedAngles.includes(angle.id)}
-                      onChange={() =>
-                        toggle(selectedAngles, angle.id, setSelectedAngles)
-                      }
-                    />
-                  </div>
-                  <div className="row" style={{ marginBottom: 8 }}>
-                    <span className={`badge ${statusClass(angle.status)}`}>
-                      {angle.status || "No status"}
-                    </span>
-                    {angle.creativeType ? (
-                      <span className="badge">{angle.creativeType}</span>
-                    ) : (
-                      <span className="badge warn">No creative type</span>
-                    )}
-                    {angle.overallScore != null ? (
-                      <span className="badge">Score {angle.overallScore}</span>
+                    <div className="row" style={{ marginBottom: 8 }}>
+                      <span className={`badge ${statusClass(angle.status)}`}>
+                        {angle.status || "No status"}
+                      </span>
+                      {angle.creativeType ? (
+                        <span className="badge">{angle.creativeType}</span>
+                      ) : (
+                        <span className="badge warn">No creative type</span>
+                      )}
+                      {angle.overallScore != null ? (
+                        <span className="badge">Score {angle.overallScore}</span>
+                      ) : null}
+                      <span className="badge">{angle.scriptIds.length} scripts</span>
+                      <span className="badge">
+                        {angle.generatedCreatives.length
+                          ? `${angle.generatedCreatives.length} file${
+                              angle.generatedCreatives.length === 1 ? "" : "s"
+                            }`
+                          : "No files"}
+                      </span>
+                    </div>
+                    <p className="muted">
+                      {angle.coreMessage || angle.vslSummary || angle.targetEmotion}
+                    </p>
+                    {angle.generatedCreatives.length ? (
+                      <div style={{ marginTop: 12 }}>
+                        <p className="muted" style={{ marginBottom: 8 }}>
+                          Generated creatives
+                        </p>
+                        <CreativeFiles
+                          kind="angle-creative"
+                          recordId={angle.id}
+                          files={angle.generatedCreatives}
+                        />
+                      </div>
                     ) : null}
-                    <span className="badge">{angle.scriptIds.length} scripts</span>
+                    <div className="actions" style={{ marginTop: 12 }}>
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={() => setOpenAngle(open ? null : angle.id)}
+                      >
+                        {open ? "Hide details" : "View all fields"}
+                      </button>
+                    </div>
+                    {open ? (
+                      <div className="detail-grid" style={{ marginTop: 14 }}>
+                        <Detail label="Creative status" value={angle.creativeStatus} />
+                        <Detail label="Last action result" value={angle.lastActionResult} />
+                        <Detail label="Angle type" value={angle.angleType} />
+                        <Detail label="Target emotion" value={angle.targetEmotion} />
+                        <Detail label="Core message" value={angle.coreMessage} />
+                        <Detail label="Reason it works" value={angle.reasonItWorks} />
+                        <Detail label="Funnel stage" value={angle.funnelStage} />
+                        <Detail label="Suggested offer" value={angle.suggestedOffer} />
+                        <Detail
+                          label="Creative direction"
+                          value={angle.creativeDirection}
+                        />
+                        <Detail
+                          label="Messaging framework"
+                          value={angle.messagingFramework}
+                        />
+                        <Detail label="VSL summary" value={angle.vslSummary} />
+                        <Detail label="VSL full" value={angle.vslFull} />
+                        <Detail
+                          label="Video suggestions"
+                          value={angle.videoSuggestions}
+                        />
+                        <Detail
+                          label="Emotional triggers"
+                          value={angle.emotionalTriggers}
+                        />
+                        <Detail
+                          label="Cognitive biases"
+                          value={angle.cognitiveBiases}
+                        />
+                        <Detail
+                          label="Direct response techniques"
+                          value={angle.drTechniques}
+                        />
+                        <Detail label="Meta compliance risk" value={angle.metaRisk} />
+                        <Detail label="Other scores" value={angle.otherScores} />
+                        <Detail
+                          label="Effectiveness"
+                          value={angle.effectiveness}
+                        />
+                        <Detail label="Buying intent" value={angle.buyingIntent} />
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="muted">{angle.coreMessage || angle.vslSummary || angle.targetEmotion}</p>
-                </label>
-              ))}
+                );
+              })}
             </div>
           )}
           <div className="sticky-actions stack">
@@ -440,16 +564,28 @@ export default function ProductWorkspace({
                       {script.creativeStatus || "No creative yet"}
                       {script.metaAdId ? ` · Meta ${script.metaAdId}` : ""}
                     </p>
-                    {script.generatedCreative ? (
-                      <img
-                        src={script.generatedCreative.thumb}
-                        alt=""
-                        style={{
-                          width: "100%",
-                          borderRadius: 12,
-                          marginTop: 12,
-                        }}
-                      />
+                    {(script.generatedCreatives.length
+                      ? script.generatedCreatives
+                      : script.generatedCreative
+                        ? [script.generatedCreative]
+                        : []
+                    ).length ? (
+                      <div style={{ marginTop: 12 }}>
+                        <p className="muted" style={{ marginBottom: 8 }}>
+                          Generated creatives
+                        </p>
+                        <CreativeFiles
+                          kind="script-creative"
+                          recordId={script.id}
+                          files={
+                            script.generatedCreatives.length
+                              ? script.generatedCreatives
+                              : script.generatedCreative
+                                ? [script.generatedCreative]
+                                : []
+                          }
+                        />
+                      </div>
                     ) : null}
                     <div className="actions" style={{ marginTop: 12 }}>
                       <button
@@ -492,6 +628,24 @@ export default function ProductWorkspace({
                           <p className="muted">Shot breakdown</p>
                           <p className="prose">{script.shotBreakdown || "—"}</p>
                         </div>
+                        <Detail label="Description" value={script.description} />
+                        <Detail label="Video prompt" value={script.videoPrompt} />
+                        <Detail label="Revision notes" value={script.revisionNotes} />
+                        <Detail label="Suggested filename" value={script.filename} />
+                        <Detail label="Ad account" value={script.adAccount} />
+                        <Detail
+                          label="Performance"
+                          value={[
+                            script.spend != null ? `Spend ${script.spend}` : "",
+                            script.ctr != null ? `CTR ${script.ctr}` : "",
+                            script.cpa != null ? `CPA ${script.cpa}` : "",
+                            script.conversions != null
+                              ? `Conversions ${script.conversions}`
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
                       </div>
                     ) : null}
                   </div>

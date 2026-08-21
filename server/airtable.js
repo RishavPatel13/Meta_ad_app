@@ -246,17 +246,25 @@ function linkedIds(value) {
     .filter(Boolean);
 }
 
+function mapAttachments(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((file) => file && file.url)
+    .map((file, index) => ({
+      id: file.id || `file-${index}`,
+      url: file.url,
+      filename: file.filename || `creative-${index + 1}`,
+      type: file.type || "",
+      size: typeof file.size === "number" ? file.size : null,
+      thumb:
+        file.thumbnails?.large?.url ||
+        file.thumbnails?.small?.url ||
+        file.url,
+    }));
+}
+
 function firstAttachment(value) {
-  if (!Array.isArray(value) || !value.length) return null;
-  const file = value[0];
-  return {
-    url: file.url,
-    filename: file.filename,
-    thumb:
-      file.thumbnails?.large?.url ||
-      file.thumbnails?.small?.url ||
-      file.url,
-  };
+  return mapAttachments(value)[0] || null;
 }
 
 function mapProduct(record) {
@@ -340,6 +348,12 @@ function mapAngle(record) {
     metaRisk: asText(f[FIELDS.angle.metaRisk]),
     lastActionResult: asText(f[FIELDS.angle.lastActionResult]),
     creativeStatus: asText(f[FIELDS.angle.creativeStatus]),
+    otherScores: asText(f[FIELDS.angle.otherScores]),
+    generatedCreatives: mapAttachments(
+      f[FIELDS.angle.generatedCreative] ||
+        f["Generated Creatives"] ||
+        f["Generated Creative"]
+    ),
   };
 }
 
@@ -367,6 +381,7 @@ function mapScript(record) {
     primaryText: asText(f[FIELDS.script.primaryText]),
     description: asText(f[FIELDS.script.description]),
     generatedCreative: firstAttachment(f[FIELDS.script.generatedCreative]),
+    generatedCreatives: mapAttachments(f[FIELDS.script.generatedCreative]),
     creativeStatus: asText(f[FIELDS.script.creativeStatus]),
     videoPrompt: asText(f[FIELDS.script.videoPrompt]),
     generateCreative: Boolean(f[FIELDS.script.generateCreative]),
@@ -391,5 +406,6 @@ export {
   mapPersona,
   mapAngle,
   mapScript,
+  mapAttachments,
   belongsToProduct,
 };
